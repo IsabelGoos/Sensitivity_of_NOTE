@@ -6,6 +6,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from constants import *
+from math_utils import *
 
 def save_fig(figure, folder_out, filename_out):
     """Save a matplotlib figure to the specified output folder.
@@ -35,11 +36,11 @@ def truncate_cmap(cmap_name, minval=0.0, maxval=1.0, n=256):
     ----------
     cmap_name : str
         Name of the matplotlib colormap to truncate.
-    minval : float, optional
+    minval : float, optional (default=0.0)
         Lower bound of the colormap range, between 0.0 and 1.0.
-    maxval : float, optional
+    maxval : float, optional (default=1.0)
         Upper bound of the colormap range, between 0.0 and 1.0.
-    n : int, optional
+    n : int, optional (default=256)
         Number of discrete colors used to construct the truncated colormap.
 
     Returns
@@ -69,23 +70,23 @@ def plot_histo(x, y, z,
     ----------
     x, y, z : array-like
         Values defining the x-axis, y-axis, z-values of the histogram.
-    cmap : str, optional
+    cmap : str, optional (default='cividis')
         Name of the matplotlib colormap used for the histogram.
-    cbartxt : str or bool, optional
+    cbartxt : str or bool, optional (default=False)
         Label for the colorbar. If False, no label is added.
-    cbrticks : array-like or bool, optional
+    cbrticks : array-like or bool, optional (default=False)
         Tick locations for the colorbar. If False, default ticks are used.
-    geolabel : bool, optional
+    geolabel : bool, optional (default=False)
         If True, the x-axis is time, otherwise it is neutrino energy.
-    xlim : tuple or list or bool, optional
+    xlim : tuple or list or bool, optional (default=False)
         Lower and upper limits of the x-axis. If False, default limits are used.
-    xlog : bool, optional
+    xlog : bool, optional (default=False)
         If True, use a logarithmic scale for the x-axis.
-    xticks : array-like or bool, optional
+    xticks : array-like or bool, optional (default=False)
         Locations of the x-axis ticks. If False, default ticks are used.
-    xticklabels : array-like or bool, optional
+    xticklabels : array-like or bool, optional (default=False)
         Labels for the x-axis ticks. If False, default labels are used.
-    Delta : bool, optional
+    Delta : bool, optional (default=False)
         If True, add a secondary y-axis showing epicentral distance
         in degrees.
 
@@ -139,7 +140,7 @@ def plot_binstudy(z, n_pois_norm=25):
         2D array containing the logarithm (base 10) of the lowest bin counts.
         The first dimension corresponds to the number of cos(theta) bins
         and the second dimension to the number of energy bins.
-    n_pois_norm : float, optional
+    n_pois_norm : float, optional (default=25)
         Reference Poisson count used to define the threshold separating
         the two color scales. The threshold is given by
         ``log10(n_pois_norm)``.
