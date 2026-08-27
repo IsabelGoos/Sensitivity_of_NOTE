@@ -5,8 +5,8 @@ from matplotlib import colors
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from constants import *
-from math_utils import *
+from constants import DPI
+from math_utils import epi2costh
 
 def save_fig(figure, folder_out, filename_out):
     """Save a matplotlib figure to the specified output folder.
@@ -36,10 +36,8 @@ def truncate_cmap(cmap_name, minval=0.0, maxval=1.0, n=256):
     ----------
     cmap_name : str
         Name of the matplotlib colormap to truncate.
-    minval : float, optional (default=0.0)
-        Lower bound of the colormap range, between 0.0 and 1.0.
-    maxval : float, optional (default=1.0)
-        Upper bound of the colormap range, between 0.0 and 1.0.
+    minval, maxval : float, optional (default=0.0, 1.0)
+        Lower, upper bound of the colormap range, between 0.0 and 1.0.
     n : int, optional (default=256)
         Number of discrete colors used to construct the truncated colormap.
 
@@ -50,11 +48,11 @@ def truncate_cmap(cmap_name, minval=0.0, maxval=1.0, n=256):
     """
 
     cmap = plt.get_cmap(cmap_name)
-    colors_map = cmap(np.linspace(minval, maxval, n)) 
+    trunc_map = cmap(np.linspace(minval, maxval, n)) 
 
-    return colors.LinearSegmentedColormap.from_list(f"trunc_{cmap_name}", colors_map)
+    return colors.LinearSegmentedColormap.from_list(f"trunc_{cmap_name}", trunc_map)
 
-def plot_histo(x, y, z, 
+def plot_histo(enu_edges, ct_edges, counts, 
                cmap='cividis', 
                cbartxt=False, 
                cbrticks=False, 
@@ -68,22 +66,22 @@ def plot_histo(x, y, z,
 
     Parameters
     ----------
-    x, y, z : array-like
+    enu_edges, ct_edges, counts : array-like
         Values defining the x-axis, y-axis, z-values of the histogram.
     cmap : str, optional (default='cividis')
-        Name of the matplotlib colormap used for the histogram.
+        Matplotlib colormap used for the histogram.
     cbartxt : str or bool, optional (default=False)
         Label for the colorbar. If False, no label is added.
     cbrticks : array-like or bool, optional (default=False)
         Tick locations for the colorbar. If False, default ticks are used.
     geolabel : bool, optional (default=False)
-        If True, the x-axis is time, otherwise it is neutrino energy.
+        If True, the x-axis shows time, otherwise it shows neutrino energy.
     xlim : tuple or list or bool, optional (default=False)
         Lower and upper limits of the x-axis. If False, default limits are used.
     xlog : bool, optional (default=False)
         If True, use a logarithmic scale for the x-axis.
     xticks : array-like or bool, optional (default=False)
-        Locations of the x-axis ticks. If False, default ticks are used.
+        Tick locations for the x-axis. If False, default ticks are used.
     xticklabels : array-like or bool, optional (default=False)
         Labels for the x-axis ticks. If False, default labels are used.
     Delta : bool, optional (default=False)
@@ -96,10 +94,10 @@ def plot_histo(x, y, z,
         Figure containing the 2D histogram.
     """
 
-    # figure
+    # Create figure
     plt.rcParams.update({'font.size': 18})
     fig, ax = plt.subplots(figsize=(6.5, 5.5), constrained_layout=True)
-    im      = ax.pcolormesh(x, y, z, cmap=cmap)
+    im      = ax.pcolormesh(enu_edges, ct_edges, counts, cmap=cmap)
 
     # colorbar
     cbar = fig.colorbar(im, ax=ax, orientation='horizontal', location='top')
@@ -115,10 +113,10 @@ def plot_histo(x, y, z,
         ax.set_xlabel(r"$E_\nu$ [GeV]")
     ax.set_ylabel(r"$\cos \theta_z$")
 
-    # ticks
+    # x-axis
     if xlim: ax.set_xlim(xlim[0], xlim[1])
     if xlog: ax.set_xscale('log')
-    if xticks: ax.set_xticks(xticks)
+    if xticks:      ax.set_xticks(xticks)
     if xticklabels: ax.set_xticklabels(xticklabels)
 
     # twin axis
@@ -129,21 +127,21 @@ def plot_histo(x, y, z,
         ax2.set_yticks([epi2costh(0),  epi2costh(30),  epi2costh(60),
                         epi2costh(90), epi2costh(120), epi2costh(180)])
         ax2.set_yticklabels(["0", "30", "60", "90", "120", "180"])
+
     return fig
 
-def plot_binstudy(z, n_pois_norm=25):
+def plot_binstudy(counts, n_pois_norm=25):
     """Plot the results of the binning study.
 
     Parameters
     ----------
-    z : array-like
+    counts : array-like
         2D array containing the logarithm (base 10) of the lowest bin counts.
-        The first dimension corresponds to the number of cos(theta) bins
-        and the second dimension to the number of energy bins.
+        The first, second dimension corresponds to the number of cos(theta), 
+        energy bins.
     n_pois_norm : float, optional (default=25)
         Reference Poisson count used to define the threshold separating
-        the two color scales. The threshold is given by
-        ``log10(n_pois_norm)``.
+        the two color scales. The threshold is given by ``log10(n_pois_norm)``.
 
     Returns
     -------
@@ -153,20 +151,25 @@ def plot_binstudy(z, n_pois_norm=25):
     Notes
     -----
     Bins with values above ``log10(n_pois_norm)`` are displayed using a
-    truncated ``Blues`` colormap, while bins at or below the threshold
-    are displayed using a truncated ``Reds`` colormap.
+    truncated ``Blues`` colormap, otherwise using a truncated ``Reds`` colormap.
     """
 
-    # figure
-    plt.rcParams.update({'font.size': 18})
-    fig, ax = plt.subplots(figsize=(6.5, 7.0), constrained_layout=True)
-    (n_ct_bins, n_enu_bins) = np.shape(z)
+    # Bin coordinates
+    (n_ct_bins, n_enu_bins) = np.shape(counts)
     X, Y = np.meshgrid(np.arange(n_enu_bins+1), np.arange(n_ct_bins+1), indexing='ij')
+
+    # Split histogram at the Poisson threshold
     threshold = np.log10(n_pois_norm)
-    z_smaller = np.ma.masked_greater(z, threshold)
-    z_greater = np.ma.masked_less_equal(z, threshold)
+    z_smaller = np.ma.masked_greater(counts, threshold)
+    z_greater = np.ma.masked_less_equal(counts, threshold)
+
+    # Truncated colormaps
     blue_cmap = truncate_cmap('Blues', 0.4, 1.0)
     red_cmap  = truncate_cmap('Reds',  0.0, 0.4)
+
+    # Create figure
+    plt.rcParams.update({'font.size': 18})
+    fig, ax = plt.subplots(figsize=(6.5, 7.0), constrained_layout=True) 
     im1 = ax.pcolormesh(X, Y, z_greater.T, cmap=blue_cmap)
     im2 = ax.pcolormesh(X, Y, z_smaller.T, cmap=red_cmap)
 
@@ -179,5 +182,6 @@ def plot_binstudy(z, n_pois_norm=25):
     # labels
     ax.set_xlabel(r"Number of energy bins")
     ax.set_ylabel(r"Number of $\cos(\theta)$ bins")
+    
     return fig
 
