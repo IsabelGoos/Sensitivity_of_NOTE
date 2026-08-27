@@ -14,8 +14,8 @@ def total_chi2(z_expected, z_observed):
     Return total chi2, summed over all energies and incidence angles.
     """
     diff = z_observed - z_expected
-    div  = np.divide(np.power(diff, 2), z_expected)
+    chi2 = np.divide(np.power(diff, 2), z_expected)
     # The summation over all energies and incidence angles happens here:
-    chi2 = np.sum(div[div>0])
-    return chi2
+    tot_chi2 = np.sum(chi2[chi2>0])
+    return tot_chi2
 
