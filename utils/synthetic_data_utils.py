@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from math_utils import total_chi2
 
-class SyntheticData:
+class SyntheticNeutrinoData:
     def __init__(self, folder, filename, channel):
         """Initialize a synthetic dataset.
 
