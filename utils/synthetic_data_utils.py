@@ -4,7 +4,7 @@ import uproot
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from math_utils import *
+from math_utils import total_chi2
 
 class SyntheticData:
     def __init__(self, folder, filename, channel):
@@ -29,8 +29,7 @@ class SyntheticData:
 
         Returns
         -------
-        tuple
-            Data arrays returned by ``uproot`` through ``to_numpy()``. 
+        Tuple of NumPy arrays with counts, energy, cos(theta), Bjorken-Y
         """
         file = uproot.open(self.folder + self.filename)
         data = file[self.channel]
@@ -41,17 +40,16 @@ class SyntheticData:
 
         Returns
         -------
-        x, y : numpy.ndarray
+        enu_edges, ct_edges : numpy.ndarray
             Energy, cos(theta) bin edges.
-        var_z : numpy.ndarray
-            2D histogram values, with shape
-            ``(n_cos_theta_bins, n_energy_bins)``.
+        counts : numpy.ndarray
+            2D histogram values.  
         """
         data = self.get_rootdata()
-        # x, y, z(, b) = number, energy, costheta(, Bjorken-Y)
-        x, y, z = data[:3] 
-        var_z   = np.squeeze(x).T 
-        return y, z, var_z
+        # counts, enu_edges, ct_edges(, Bjorken-Y)
+        counts, enu_edges, ct_edges = data[:3] 
+        counts = np.squeeze(counts).T 
+        return enu_edges, ct_edges, counts
 
     def rebin_histo(self, ct_rebin=20, enu_rebin=5, firsts=True):
         """Rebin the 2D histogram by summing neighboring bins.
@@ -63,8 +61,8 @@ class SyntheticData:
         enu_rebin : int, optional (default=5)
             New number of energy bins.
         firsts : bool, optional (default=True)
-            If True, retain the first set of bins when trimming down to
-            divisible sizes. If False, retain the last set of bins.
+            If True, retain the first bins when trimming down to
+            divisible sizes. If False, retain the last bins.
 
         Returns
         -------
@@ -76,8 +74,7 @@ class SyntheticData:
 
         Note
         -----
-        Only complete groups of ``ct_rebin`` and ``enu_rebin`` bins
-        are retained. Any remaining bins that do not form a complete
+        Any remaining bins that do not form a complete
         group are discarded.
         """
         x, y, z = self.get_histo()
@@ -87,12 +84,12 @@ class SyntheticData:
         ct_bins_new   = (ct_bins  // ct_rebin)  * ct_rebin
         enu_bins_new  = (enu_bins // enu_rebin) * enu_rebin
         if firsts:
-            # keep the first ct_rebin and enu_rebin bins
+            # keep the first ct_bins_new and enu_bins_new bins
             x_trimmed = x[:(enu_bins_new+1)] 
             y_trimmed = y[:(ct_bins_new+1)]
             histo_trimmed = z[:ct_bins_new, :enu_bins_new] 
         else:
-            # keep the last ct_rebin and enu_rebin bins
+            # keep the last ct_bins_new and enu_bins_new bins
             x_trimmed = x[-(enu_bins_new+1):] 
             y_trimmed = y[-(ct_bins_new+1):]
             histo_trimmed = z[-ct_bins_new:, -enu_bins_new:]
@@ -109,22 +106,19 @@ class SyntheticData:
         return x_rebinned, y_rebinned, histo_rebinned
 
     def regroup_bins_DG(self, n_pois_norm=25, ct_rebin=80):
-        """Regroup energy bins according to a Poisson-count threshold.
+        """Regroup energy bins to meet a Poisson-count threshold.
 
         Parameters
         ----------
         n_pois_norm : float, optional (default=25)
-            Minimum number of events required in every cos(theta) bin
-            before an energy bin is finalized.
+            Minimum number of events required in every bin.
         ct_rebin : int, optional (default=80)
             New number of cos(theta) bins.
 
         Returns
         -------
-        x_regrouped : numpy.ndarray
-            Energy bin edges after regrouping.
-        y_regrouped : numpy.ndarray
-            cos(theta) bin edges after rebinning.
+        x_regrouped, y_regrouped : numpy.ndarray
+            Energy, cos(theta) bin edges after regrouping.
         histo_regrouped : numpy.ndarray
             Regrouped 2D histogram.
 
@@ -145,7 +139,8 @@ class SyntheticData:
         x, y, z = self.rebin_histo(ct_rebin=ct_rebin, enu_rebin=100)
         ct_bins, enu_bins = z.shape
 
-        # Stores the columns of the regrouped histogram (each column corresponds to a merged energy bin).
+        # Store the columns of the regrouped histogram 
+        # (each column corresponds to a merged energy bin).
         histo_regrouped = []
 
         # Contains the current event counts of all cos(theta) bins, up to the i-th energy bin.
