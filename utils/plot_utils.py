@@ -185,3 +185,77 @@ def plot_binstudy(counts, n_pois_norm=25):
     
     return fig
 
+
+
+
+
+def plot_zoa(Z, A, labels, xlim=(0, 36), ylim=(0.43, 0.505),
+             figsize=(8, 6), fontsize=14):
+    """Plot Z/A for a set of elements using a broken y-axis."""
+
+# Extract weights and nuclear properties in the same order
+wt_BE   = np.array([v["BE"]   for v in wt_rocks.values()])
+wt_core = np.array([v["core"] for v in wt_rocks.values()])
+wt_BSE  = np.array([v["BSE"]  for v in wt_rocks.values()])
+wt_MORB = np.array([v["MORB"] for v in wt_rocks.values()])
+Z_rocks = np.array([elements[element][0] for element in wt_rocks])
+A_rocks = np.array([elements[element][1] for element in wt_rocks])
+
+# Calculate electron yields Y_e
+Ye_BE   = np.average(Z_rocks/A_rocks, weights=wt_BE)
+Ye_core = np.average(Z_rocks/A_rocks, weights=wt_core)
+Ye_BSE  = np.average(Z_rocks/A_rocks, weights=wt_BSE)
+Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
+
+    plt.rcParams.update({'font.size': 16})
+
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1,
+        sharex=True,
+        figsize=figsize,
+        constrained_layout=True,
+        gridspec_kw={'height_ratios': [1, 5]}
+    )
+
+    # Element labels
+    for i, (z, a, label) in enumerate(zip(Z, A, labels)):
+        ax = ax1 if i == 0 else ax2
+        ax.text(z, z / a, label, fontsize=fontsize,
+                ha='center', va='center')
+
+    # Axis limits
+    ax1.set_xlim(*xlim)
+    ax1.set_ylim(0.98, 1.0)
+    ax2.set_ylim(*ylim)
+
+    # Broken-axis appearance
+    ax1.spines.bottom.set_visible(False)
+    ax2.spines.top.set_visible(False)
+    ax1.tick_params(axis='x', bottom=False)
+    ax2.tick_params(axis='x', top=False)
+
+    d = 0.008
+    range1 = np.diff(ax1.get_ylim())[0]
+    range2 = np.diff(ax2.get_ylim())[0]
+
+    kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
+    ax1.plot(
+        (-d, d),
+        (-d * range2 / range1, d * range2 / range1),
+        **kwargs
+    )
+    ax1.plot(
+        (1 - d, 1 + d),
+        (-d * range2 / range1, d * range2 / range1),
+        **kwargs
+    )
+
+    kwargs.update(transform=ax2.transAxes)
+    ax2.plot((-d, d), (1 - d, 1 + d), **kwargs)
+    ax2.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+    # Labels
+    ax2.set_xlabel(r"$Z$")
+    ax2.set_ylabel(r"$Z/A$")
+
+    return fig
