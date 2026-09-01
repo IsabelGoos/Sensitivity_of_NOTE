@@ -59,25 +59,7 @@ wt_MORB = np.array([v["MORB"] for v in wt_rocks.values()])
 Z_rocks = np.array([elements[element][0] for element in wt_rocks])
 A_rocks = np.array([elements[element][1] for element in wt_rocks])
 
-# Rock elements
-
-# Z_rocks = np.array([26,     8, 12,    14,    28,    20,    16,    13,    27, 24, 15,    11,    22,    19,   1])
-# A_rocks = np.array([55.85, 16, 24.31, 28.09, 58.69, 40.08, 32.07, 26.98, 59, 52, 30.97, 22.99, 47.92, 39.1, 1.01])
-# labels_rocks =.    [ "P",  "Na",   "Ti",  "K",   "H"]
-# Z_BE   = np.average(Z_rocks, weights=wt_BE)
-# Z_core = np.average(Z_rocks, weights=wt_core)
-# Z_BSE  = np.average(Z_rocks, weights=wt_BSE)
-# Z_MORB = np.average(Z_rocks, weights=wt_MORB)
 Ye_BE   = np.average(Z_rocks/A_rocks, weights=wt_BE)
 Ye_core = np.average(Z_rocks/A_rocks, weights=wt_core)
 Ye_BSE  = np.average(Z_rocks/A_rocks, weights=wt_BSE)
 Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
-# Ye_BE_Bill   = 0.4875
-# Ye_core_Bill = 0.4683
-# Ye_BSE_Bill  = 0.4794
-# Ye_MORB_Bill = 0.4848
-
-print(Ye_BE)
-print(Ye_core)
-print(Ye_BSE)
-print(Ye_MORB)
