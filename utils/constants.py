@@ -51,16 +51,4 @@ wt_rocks = {
     "Ni": {"BE": 0.009, "core": 0.025, "BSE": 0.001, "MORB": 0.000},
 }
 
-# Extract weights and nuclear properties in the same order
-wt_BE   = np.array([v["BE"]   for v in wt_rocks.values()])
-wt_core = np.array([v["core"] for v in wt_rocks.values()])
-wt_BSE  = np.array([v["BSE"]  for v in wt_rocks.values()])
-wt_MORB = np.array([v["MORB"] for v in wt_rocks.values()])
-Z_rocks = np.array([elements[element][0] for element in wt_rocks])
-A_rocks = np.array([elements[element][1] for element in wt_rocks])
 
-# Calculate electron yields Y_e
-Ye_BE   = np.average(Z_rocks/A_rocks, weights=wt_BE)
-Ye_core = np.average(Z_rocks/A_rocks, weights=wt_core)
-Ye_BSE  = np.average(Z_rocks/A_rocks, weights=wt_BSE)
-Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
