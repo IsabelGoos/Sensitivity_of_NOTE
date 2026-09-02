@@ -5,7 +5,7 @@ from matplotlib import colors
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from constants import DPI
+from constants import DPI, wt_rocks, elements
 from math_utils import epi2costh
 
 def save_fig(figure, folder_out, filename_out):
@@ -99,14 +99,14 @@ def plot_histo(enu_edges, ct_edges, counts,
     fig, ax = plt.subplots(figsize=(6.5, 5.5), constrained_layout=True)
     im      = ax.pcolormesh(enu_edges, ct_edges, counts, cmap=cmap)
 
-    # colorbar
+    # Colorbar
     cbar = fig.colorbar(im, ax=ax, orientation='horizontal', location='top')
     if cbartxt:  cbar.set_label(cbartxt, labelpad=10)
     if cbrticks: cbar.set_ticks(cbrticks)
     ##### Probabilities are forced to go from 0 to 1
     ######if (len(x.shape) == 2): im.set_clim(0, 1) 
 
-    # labels
+    # Labels
     if geolabel:
         ax.set_xlabel(r"Time [min]")
     else:
@@ -119,7 +119,7 @@ def plot_histo(enu_edges, ct_edges, counts,
     if xticks:      ax.set_xticks(xticks)
     if xticklabels: ax.set_xticklabels(xticklabels)
 
-    # twin axis
+    # Twin axis
     if Delta: # Delta = epicentral distance
         ax2 = ax.twinx()
         ax2.set_ylabel(r"$\Delta$ [$^\circ$]")
@@ -173,60 +173,55 @@ def plot_binstudy(counts, n_pois_norm=25):
     im1 = ax.pcolormesh(X, Y, z_greater.T, cmap=blue_cmap)
     im2 = ax.pcolormesh(X, Y, z_smaller.T, cmap=red_cmap)
 
-    # colorbar
+    # Colorbar
     cbar1 = fig.colorbar(im1, ax=ax, orientation='horizontal', location='top')
     cbar2 = fig.colorbar(im2, ax=ax, orientation='horizontal', location='top')
     cbar1.set_label(r"$\log_{10}$ (Lowest bin count)", labelpad=10)
     cbar2.set_label("", labelpad=20)
 
-    # labels
+    # Labels
     ax.set_xlabel(r"Number of energy bins")
     ax.set_ylabel(r"Number of $\cos(\theta)$ bins")
     
     return fig
 
+def plot_Ye(Z, A, labels, xlim=(0, 36), ylim_l=(0.43, 0.505), ylim_h=(0.98, 1.0)):
+    """Plot the electron yield Y_e for a set of elements and composites."""
 
+    # Extract rock weights and nuclear properties
+    wt_BE   = np.array([v["BE"]   for v in wt_rocks.values()])
+    wt_core = np.array([v["core"] for v in wt_rocks.values()])
+    wt_BSE  = np.array([v["BSE"]  for v in wt_rocks.values()])
+    wt_MORB = np.array([v["MORB"] for v in wt_rocks.values()])
+    Z_rocks = np.array([elements[element][0] for element in wt_rocks])
+    A_rocks = np.array([elements[element][1] for element in wt_rocks])
 
+    # Compute weighted mean electron yields for each composite
+    Ye_BE   = np.average(Z_rocks/A_rocks, weights=wt_BE)
+    Ye_core = np.average(Z_rocks/A_rocks, weights=wt_core)
+    Ye_BSE  = np.average(Z_rocks/A_rocks, weights=wt_BSE)
+    Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
 
-
-def plot_zoa(Z, A, labels, xlim=(0, 36), ylim=(0.43, 0.505),
-             figsize=(8, 6), fontsize=14):
-    """Plot Z/A for a set of elements using a broken y-axis."""
-
-# Extract weights and nuclear properties in the same order
-wt_BE   = np.array([v["BE"]   for v in wt_rocks.values()])
-wt_core = np.array([v["core"] for v in wt_rocks.values()])
-wt_BSE  = np.array([v["BSE"]  for v in wt_rocks.values()])
-wt_MORB = np.array([v["MORB"] for v in wt_rocks.values()])
-Z_rocks = np.array([elements[element][0] for element in wt_rocks])
-A_rocks = np.array([elements[element][1] for element in wt_rocks])
-
-# Calculate electron yields Y_e
-Ye_BE   = np.average(Z_rocks/A_rocks, weights=wt_BE)
-Ye_core = np.average(Z_rocks/A_rocks, weights=wt_core)
-Ye_BSE  = np.average(Z_rocks/A_rocks, weights=wt_BSE)
-Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
-
+    # Create figure
     plt.rcParams.update({'font.size': 16})
-
     fig, (ax1, ax2) = plt.subplots(
         2, 1,
         sharex=True,
-        figsize=figsize,
+        figsize=(8, 6),
         constrained_layout=True,
         gridspec_kw={'height_ratios': [1, 5]}
     )
 
-    # Element labels
+    # Elements, the first has to be hydrogen
     for i, (z, a, label) in enumerate(zip(Z, A, labels)):
         ax = ax1 if i == 0 else ax2
-        ax.text(z, z / a, label, fontsize=fontsize,
+        ax.text(z, z/a, label, fontsize=14,
                 ha='center', va='center')
 
     # Axis limits
     ax1.set_xlim(*xlim)
-    ax1.set_ylim(0.98, 1.0)
-    ax2.set_ylim(*ylim)
+    ax1.set_ylim(*ylim_h)
+    ax2.set_ylim(*ylim_l)
 
     # Broken-axis appearance
     ax1.spines.bottom.set_visible(False)
@@ -234,28 +229,36 @@ Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
     ax1.tick_params(axis='x', bottom=False)
     ax2.tick_params(axis='x', top=False)
 
+    # Diagonal marks indicating the broken y-axis
     d = 0.008
     range1 = np.diff(ax1.get_ylim())[0]
     range2 = np.diff(ax2.get_ylim())[0]
+    print(range1)
+    print(ax1.get_ylim()[1] - ax1.get_ylim()[0])
 
-    kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
+    kwargs = dict(transform=ax1.transAxes, clip_on=False)
     ax1.plot(
         (-d, d),
-        (-d * range2 / range1, d * range2 / range1),
+        (-d*range2/range1, d*range2/range1),
         **kwargs
     )
     ax1.plot(
-        (1 - d, 1 + d),
-        (-d * range2 / range1, d * range2 / range1),
+        (1-d, 1+d),
+        (-d*range2/range1, d*range2/range1),
         **kwargs
     )
 
     kwargs.update(transform=ax2.transAxes)
-    ax2.plot((-d, d), (1 - d, 1 + d), **kwargs)
-    ax2.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+    ax2.plot((-d, d), 
+             (1-d, 1+d), 
+             **kwargs)
+    ax2.plot((1-d, 1+d), 
+             (1-d, 1+d), 
+             **kwargs
+    )
 
     # Labels
     ax2.set_xlabel(r"$Z$")
-    ax2.set_ylabel(r"$Z/A$")
+    ax2.set_ylabel(r"$Y_e$")
 
     return fig
