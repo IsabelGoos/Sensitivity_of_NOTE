@@ -192,15 +192,16 @@ def plot_Ye(Z, A, labels, xlim=(0, 36), ylim_l=(0.43, 0.505), ylim_h=(0.98, 1.0)
     wt_BE   = np.array([v["BE"]   for v in wt_rocks.values()])
     wt_core = np.array([v["core"] for v in wt_rocks.values()])
     wt_BSE  = np.array([v["BSE"]  for v in wt_rocks.values()])
-    wt_MORB = np.array([v["MORB"] for v in wt_rocks.values()])
     Z_rocks = np.array([elements[element][0] for element in wt_rocks])
     A_rocks = np.array([elements[element][1] for element in wt_rocks])
 
-    # Compute weighted mean electron yields for each composite
+    # Compute weighted atmoic numbers and mean electron yields for each composite
+    Z_BE   = np.average(Z_rocks, weights=wt_BE)
+    Z_core = np.average(Z_rocks, weights=wt_core)
+    Z_BSE  = np.average(Z_rocks, weights=wt_BSE)
     Ye_BE   = np.average(Z_rocks/A_rocks, weights=wt_BE)
     Ye_core = np.average(Z_rocks/A_rocks, weights=wt_core)
     Ye_BSE  = np.average(Z_rocks/A_rocks, weights=wt_BSE)
-    Ye_MORB = np.average(Z_rocks/A_rocks, weights=wt_MORB)
 
     # Create figure
     plt.rcParams.update({'font.size': 16})
@@ -218,6 +219,22 @@ def plot_Ye(Z, A, labels, xlim=(0, 36), ylim_l=(0.43, 0.505), ylim_h=(0.98, 1.0)
         ax.text(z, z/a, label, fontsize=14,
                 ha='center', va='center')
 
+    # Plot composite points
+    composites = {
+        "BE":   (Z_BE,   Ye_BE),
+        "core": (Z_core, Ye_core),
+        "BSE":  (Z_BSE,  Ye_BSE),
+    }
+
+    for label, (z, ye) in composites.items():
+        ax2.scatter(
+            z, ye,
+            color='tab:red',
+            s=40,
+            zorder=3,
+            marker='x'
+        )
+
     # Axis limits
     ax1.set_xlim(*xlim)
     ax1.set_ylim(*ylim_h)
@@ -233,10 +250,8 @@ def plot_Ye(Z, A, labels, xlim=(0, 36), ylim_l=(0.43, 0.505), ylim_h=(0.98, 1.0)
     d = 0.008
     range1 = np.diff(ax1.get_ylim())[0]
     range2 = np.diff(ax2.get_ylim())[0]
-    print(range1)
-    print(ax1.get_ylim()[1] - ax1.get_ylim()[0])
 
-    kwargs = dict(transform=ax1.transAxes, clip_on=False)
+    kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
     ax1.plot(
         (-d, d),
         (-d*range2/range1, d*range2/range1),
