@@ -192,6 +192,106 @@ class SyntheticNeutrinoData:
         chi2_vals = total_chi2(z_expected, z_observed)
         return chi2_vals
 
+class SyntheticSeismicData:
+    def __init__(self, max_deg=180, step=1, model="ak135f_5s", cache_name="seismic_cache.mseed"):
+        """Initialize synthetic seismic datasets from Syngine.
+
+        Parameters
+        ----------
+        max_deg : int, optional (default=180)
+            Maximum angular distance in degrees.
+        step : int, optional (default=1)
+            Angular step size in degrees.
+        model : str, optional (default="ak135f_5s")
+            Syngine Earth model.
+        cache_name : str, optional (default="seismic_cache.mseed")
+            File path to save/load downloaded waveforms to prevent network timeouts.
+        """
+        self.max_deg    = max_deg
+        self.step       = step
+        self.model      = model
+        self.cache_name = cache_name
+        self.st_synth   = None
+
+    def fetch_waveforms(self, force_download=False, max_retries=3):
+        """Fetch synthetic seismic waveforms via Syngine."""
+        
+        if os.path.exists(self.cache_filename) and not force_download:
+            print(f"Loading cached seismic waveforms from '{self.cache_filename}'...")
+            self.st_synth = obspy.read(self.cache_filename)
+            return self.st_synth
+
+        print("Downloading seismic waveforms from Syngine...")
+        c_s = SyngineClient()
+        self.st_synth = obspy.Stream()
+        deg_range = np.arange(0, self.max_deg + 1, self.step)
+
+        for k in deg_range:
+            if k % 10 == 0:
+                print(f"Fetching distance: {k}°")
+
+            # Retry loop to handle transient network timeouts
+            for attempt in range(max_retries):
+                try:
+                    self.st_synth += c_s.get_waveforms(
+                        model=self.model,
+                        receiverlatitude=0,
+                        receiverlongitude=k,
+                        sourcelatitude=0,
+                        sourcelongitude=0,
+                        sourcedepthinmeters=30000,
+                        sourcedoublecouple=[145, 43, 61, 3.51e+24],
+                        dt="0.1",
+                        units="displacement",
+                        components="Z"
+                    )
+                    break
+                except RequestException as e:
+                    if attempt < max_retries - 1:
+                        time.sleep(2)
+                    else:
+                        raise e
+
+        # Cache waveforms locally
+        self.st_synth.write(self.cache_filename, format="MSEED")
+        print(f"Waveforms cached to '{self.cache_filename}'.")
+        return self.st_synth
+
+    def process_envelopes(self):
+        """Compute the Hilbert transform envelope matrix from the loaded waveforms.
+
+        Returns
+        -------
+        time_min : numpy.ndarray
+            Array of time points in minutes.
+        costh : numpy.ndarray
+            Array of cos(theta_z) coordinates.
+        envelope_mat : numpy.ndarray
+            Normalized envelope matrix corresponding to time vs cos(theta_z).
+        """
+        if self.st_synth is None:
+            self.fetch_waveforms()
+
+        n_traces = len(self.st_synth)
+        n_pts = len(self.st_synth[0].times())
+        envelope_mat = np.zeros([n_traces, n_pts])
+
+        time_min = self.st_synth[0].times() / 60.0
+        costh = np.zeros(n_traces)
+
+        for k in range(n_traces):
+            data = self.st_synth[k].data
+            st_demean = data - np.mean(data)
+            env = np.abs(hilbert(st_demean))
+            envelope_mat[k, :] = env
+            costh[k] = np.cos(np.pi / 2.0 + k * np.pi / 180.0 / 2.0)
+
+        # Scale and clip envelope
+        if envelope_mat.max() > 0:
+            envelope_mat = (envelope_mat * 5000) / envelope_mat.max()
+            envelope_mat = np.clip(envelope_mat, 0, 1)
+
+        return time_min, costh, envelope_mat
 
 
 
